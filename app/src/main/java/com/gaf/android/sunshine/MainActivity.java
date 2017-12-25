@@ -16,12 +16,14 @@
 package com.gaf.android.sunshine;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
 import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.preference.PreferenceManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -39,7 +41,10 @@ import com.gaf.android.sunshine.utilities.OpenWeatherJsonUtils;
 
 import java.net.URL;
 
-public class MainActivity extends AppCompatActivity implements ForecastAdapterOnClickHandler, LoaderManager.LoaderCallbacks<String[]>{
+public class MainActivity extends AppCompatActivity implements ForecastAdapterOnClickHandler,
+        LoaderManager.LoaderCallbacks<String[]>, SharedPreferences.OnSharedPreferenceChangeListener {
+
+    private static final String TAG = MainActivity.class.getSimpleName();
 
     private TextView mErrorMessageDisplay;
 
@@ -50,6 +55,9 @@ public class MainActivity extends AppCompatActivity implements ForecastAdapterOn
     private ForecastAdapter mForecastAdapter;
 
     private static final int FORECAST_LOADER_ID = 0;
+
+    //Add a private static boolean flag for preference updates and initialize it to false
+    private static boolean PREFERENCES_HAVE_BEEN_UPDATED = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,12 +83,24 @@ public class MainActivity extends AppCompatActivity implements ForecastAdapterOn
         mLoadingIndicator = (ProgressBar) findViewById(R.id.pb_data);
 
         /*
+         * A LinearLayoutManager is responsible for measuring and positioning item views within a
+         * RecyclerView into a linear list. This means that it can produce either a horizontal or
+         * vertical list depending on which parameter you pass in to the LinearLayoutManager
+         * constructor. In our case, we want a vertical list, so we pass in the constant from the
+         * LinearLayoutManager class for vertical lists, LinearLayoutManager.VERTICAL.
+         *
+         * There are other LayoutManagers available to display your data in uniform grids,
+         * staggered grids, and more! See the developer documentation for more details.
+         */
+        int recyclerViewOrientation = LinearLayoutManager.VERTICAL;
+
+        /*
          * LinearLayoutManager can support HORIZONTAL or VERTICAL orientations. The reverse layout
          * parameter is useful mostly for HORIZONTAL layouts that should reverse for right to left
          * languages.
          */
         boolean shouldReverseLayout = false;
-        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, shouldReverseLayout);
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this, recyclerViewOrientation, shouldReverseLayout);
         mRecyclerViewForecastList.setLayoutManager(linearLayoutManager);
 
         /*
@@ -126,6 +146,17 @@ public class MainActivity extends AppCompatActivity implements ForecastAdapterOn
          * the last created loader is re-used.
          */
         getSupportLoaderManager().initLoader(loaderId, bundleForLoader, callback);
+
+        Log.d(TAG, "onCreate: registering preference changed listener");
+
+        // COMPLETED (6) Register MainActivity as a OnSharedPreferenceChangedListener in onCreate
+        /*
+         * Register MainActivity as an OnPreferenceChangedListener to receive a callback when a
+         * SharedPreference has changed. Please note that we must unregister MainActivity as an
+         * OnSharedPreferenceChanged listener in onDestroy to avoid any memory leaks.
+         */
+        PreferenceManager.getDefaultSharedPreferences(this)
+                .registerOnSharedPreferenceChangeListener(this);
     }
 
     /**
@@ -139,7 +170,8 @@ public class MainActivity extends AppCompatActivity implements ForecastAdapterOn
      * to automagically open the Common Intents page
      */
     private void openLocationInMap() {
-        String addressString = "1600 Ampitheatre Parkway, CA";
+        //String addressString = "1600 Ampitheatre Parkway, CA";
+        String addressString = SunshinePreferences.getPreferredWeatherLocation(this);
         Uri geoLocation = Uri.parse("geo:0,0?q=" + addressString);
 
         Intent intent = new Intent(Intent.ACTION_VIEW);
@@ -173,6 +205,11 @@ public class MainActivity extends AppCompatActivity implements ForecastAdapterOn
         }
         if (menuItemThatWasSelected == R.id.action_map) {
             openLocationInMap();
+            return true;
+        }
+        if (menuItemThatWasSelected == R.id.action_settings) {
+            Intent startSettingActivityIntent = new Intent(this, SettingsActivity.class);
+            startActivity(startSettingActivityIntent);
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -226,7 +263,7 @@ public class MainActivity extends AppCompatActivity implements ForecastAdapterOn
     @Override
     public void onClick(String weatherForDay) {
         Intent callDetailActivityIntent = new Intent(MainActivity.this, DetailActivity.class);
-        callDetailActivityIntent.putExtra("WEATHER_TODAY", weatherForDay);
+        callDetailActivityIntent.putExtra(Intent.EXTRA_TEXT, weatherForDay);
         startActivity(callDetailActivityIntent);
         //Toast.makeText(this, weatherForDay, Toast.LENGTH_SHORT).show();
     }
@@ -339,7 +376,60 @@ public class MainActivity extends AppCompatActivity implements ForecastAdapterOn
         mForecastAdapter.setWeatherData(null);
     }
 
+    // COMPLETED (7) In onStart, if preferences have been changed, refresh the data and set the flag to false
+    /**
+     * OnStart is called when the Activity is coming into view. This happens when the Activity is
+     * first created, but also happens when the Activity is returned to from another Activity. We
+     * are going to use the fact that onStart is called when the user returns to this Activity to
+     * check if the location setting or the preferred units setting has changed. If it has changed,
+     * we are going to perform a new query.
+     */
+    @Override
+    protected void onStart() {
+        super.onStart();
 
+        /*
+         * If the preferences for location or units have changed since the user was last in
+         * MainActivity, perform another query and set the flag to false.
+         *
+         * This isn't the ideal solution because there really isn't a need to perform another
+         * GET request just to change the units, but this is the simplest solution that gets the
+         * job done for now. Later in this course, we are going to show you more elegant ways to
+         * handle converting the units from celsius to fahrenheit and back without hitting the
+         * network again by keeping a copy of the data in a manageable format.
+         */
+        if (PREFERENCES_HAVE_BEEN_UPDATED) {
+            Log.d(TAG, "onStart: preferences were updated");
+            getSupportLoaderManager().restartLoader(FORECAST_LOADER_ID, null, this);
+            PREFERENCES_HAVE_BEEN_UPDATED = false;
+        }
+    }
+    //Override onDestroy and unregister MainActivity as a SharedPreferenceChangedListener
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        /* Unregister MainActivity as an OnPreferenceChangedListener to avoid any memory leaks. */
+        PreferenceManager.getDefaultSharedPreferences(this)
+                .unregisterOnSharedPreferenceChangeListener(this);
+    }
+
+
+    // Override onSharedPreferenceChanged to set the preferences flag to true
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
+        /*
+         * Set this flag to true so that when control returns to MainActivity, it can refresh the
+         * data.
+         *
+         * This isn't the ideal solution because there really isn't a need to perform another
+         * GET request just to change the units, but this is the simplest solution that gets the
+         * job done for now. Later in this course, we are going to show you more elegant ways to
+         * handle converting the units from celsius to fahrenheit and back without hitting the
+         * network again by keeping a copy of the data in a manageable format.
+         */
+        PREFERENCES_HAVE_BEEN_UPDATED = true;
+    }
     /*private class FetchWeatherAsyncTask extends AsyncTask<String, Void, String[]>{
 
         @Override

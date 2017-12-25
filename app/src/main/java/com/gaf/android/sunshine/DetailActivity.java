@@ -14,6 +14,8 @@ public class DetailActivity extends AppCompatActivity {
 
     private TextView mWeatherDetails;
 
+    private String mForecast;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -23,8 +25,11 @@ public class DetailActivity extends AppCompatActivity {
 
         Intent intentThasHasStartedThisActivity = getIntent();
 
-        if(intentThasHasStartedThisActivity.hasExtra("WEATHER_TODAY")){
-            mWeatherDetails.setText(intentThasHasStartedThisActivity.getStringExtra("WEATHER_TODAY"));
+        if (intentThasHasStartedThisActivity != null) {
+            if (intentThasHasStartedThisActivity.hasExtra(Intent.EXTRA_TEXT)) {
+                mForecast = intentThasHasStartedThisActivity.getStringExtra(Intent.EXTRA_TEXT);
+                mWeatherDetails.setText(mForecast);
+            }
         }
     }
 
@@ -49,5 +54,15 @@ public class DetailActivity extends AppCompatActivity {
         MenuItem menuItem = menu.findItem(R.id.action_share);
         menuItem.setIntent(createShareForecastIntent());
         return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int menuItemThatWasSelected = item.getItemId();
+        if(menuItemThatWasSelected == R.id.action_settings){
+            Intent startSettingActivityIntent = new Intent(this, SettingsActivity.class);
+            startActivity(startSettingActivityIntent);
+        }
+        return super.onOptionsItemSelected(item);
     }
 }
