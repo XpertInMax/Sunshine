@@ -183,5 +183,9 @@ class ForecastAdapter extends RecyclerView.Adapter<ForecastAdapter.ForecastAdapt
             long dateInMillis = mCursor.getLong(MainActivity.INDEX_WEATHER_DATE);
             mClickHandler.onClick(dateInMillis);
         }
+
+        public void test(){
+            //delete this pleass...just created for check in to GitHub
+        }
     }
 }
