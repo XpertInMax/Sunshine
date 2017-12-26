@@ -43,6 +43,11 @@
                 android:value=".MainActivity"/>
         </activity>
         <activity android:name=".SettingsActivity"></activity>
+        <provider
+            android:authorities="com.gaf.android.sunshine"
+            android:name="com.gaf.android.sunshine.data.WeatherProvider"
+            android:exported="false"/>
     </application>
+
 
 </manifest>
