@@ -1,5 +1,21 @@
+/*
+ * Copyright (C) 2015 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.gaf.android.sunshine.data;
 
+import android.annotation.TargetApi;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.UriMatcher;
@@ -11,10 +27,16 @@ import android.support.annotation.NonNull;
 import com.gaf.android.sunshine.utilities.SunshineDateUtils;
 
 /**
- * Created by Amani on 25-12-2017.
+ * This class serves as the ContentProvider for all of Sunshine's data. This class allows us to
+ * bulkInsert data, query data, and delete data.
+ * <p>
+ * Although ContentProvider implementation requires the implementation of additional methods to
+ * perform single inserts, updates, and the ability to get the type of the data from a URI.
+ * However, here, they are not implemented for the sake of brevity and simplicity. If you would
+ * like, you may implement them on your own. However, we are not going to be teaching how to do
+ * so in this course.
  */
-
-public class WeatherProvider extends ContentProvider{
+public class WeatherProvider extends ContentProvider {
 
     /*
      * These constant will be used to match URIs with the data they are looking for. We will take
@@ -30,7 +52,6 @@ public class WeatherProvider extends ContentProvider{
      * common convention in Android programming.
      */
     private static final UriMatcher sUriMatcher = buildUriMatcher();
-
     private WeatherDbHelper mOpenHelper;
 
     /**
@@ -101,10 +122,8 @@ public class WeatherProvider extends ContentProvider{
          * very lightweight, we are safe to perform that initialization here.
          */
         mOpenHelper = new WeatherDbHelper(getContext());
-
         return true;
     }
-
 
     /**
      * Handles requests to insert a set of new rows. In Sunshine, we are only going to be
@@ -151,11 +170,11 @@ public class WeatherProvider extends ContentProvider{
                 }
 
                 return rowsInserted;
+
             default:
                 return super.bulkInsert(uri, values);
         }
     }
-
 
     /**
      * Handles query requests from clients. We will use this method in Sunshine to query for all
@@ -284,22 +303,38 @@ public class WeatherProvider extends ContentProvider{
      */
     @Override
     public int delete(@NonNull Uri uri, String selection, String[] selectionArgs) {
+
+        /* Users of the delete method will expect the number of rows deleted to be returned. */
         int numRowsDeleted;
+
+        /*
+         * If we pass null as the selection to SQLiteDatabase#delete, our entire table will be
+         * deleted. However, if we do pass null and delete all of the rows in the table, we won't
+         * know how many rows were deleted. According to the documentation for SQLiteDatabase,
+         * passing "1" for the selection will delete all rows and return the number of rows
+         * deleted, which is what the caller of this method expects.
+         */
         if (null == selection) selection = "1";
+
         switch (sUriMatcher.match(uri)) {
+
             case CODE_WEATHER:
                 numRowsDeleted = mOpenHelper.getWritableDatabase().delete(
                         WeatherContract.WeatherEntry.TABLE_NAME,
                         selection,
                         selectionArgs);
+
                 break;
+
             default:
                 throw new UnsupportedOperationException("Unknown uri: " + uri);
         }
 
+        /* If we actually deleted any rows, notify that a change has occurred to this URI */
         if (numRowsDeleted != 0) {
             getContext().getContentResolver().notifyChange(uri, null);
         }
+
         return numRowsDeleted;
     }
 
@@ -346,6 +381,7 @@ public class WeatherProvider extends ContentProvider{
      * http://developer.android.com/reference/android/content/ContentProvider.html#shutdown()
      */
     @Override
+    @TargetApi(11)
     public void shutdown() {
         mOpenHelper.close();
         super.shutdown();

@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
  */
 public final class SunshineDateUtils {
 
-
     /* Milliseconds in a day */
     public static final long DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
 
@@ -178,19 +177,6 @@ public final class SunshineDateUtils {
         long gmtOffset = timeZone.getOffset(normalizedUtcDate);
         long localMidnightMillis = normalizedUtcDate - gmtOffset;
         return localMidnightMillis;
-    }
-
-    /**
-     * Since all dates from the database are in UTC, we must convert the local date to the date in
-     * UTC time. This function performs that conversion using the TimeZone offset.
-     *
-     * @param localDate The local datetime to convert to a UTC datetime, in milliseconds.
-     * @return The UTC date (the local datetime + the TimeZone offset) in milliseconds.
-     */
-    public static long getUTCDateFromLocal(long localDate) {
-        TimeZone tz = TimeZone.getDefault();
-        long gmtOffset = tz.getOffset(localDate);
-        return localDate + gmtOffset;
     }
 
     /**

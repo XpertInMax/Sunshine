@@ -35,6 +35,7 @@ import android.widget.ProgressBar;
 
 import com.gaf.android.sunshine.data.SunshinePreferences;
 import com.gaf.android.sunshine.data.WeatherContract;
+import com.gaf.android.sunshine.sync.SunshineSyncUtils;
 import com.gaf.android.sunshine.utilities.FakeDataUtils;
 
 
@@ -94,9 +95,6 @@ public class MainActivity extends AppCompatActivity implements
         setContentView(R.layout.activity_forecast);
         getSupportActionBar().setElevation(0f);
 
-
-
-        FakeDataUtils.insertFakeData(this);
 
         /*
          * Using findViewById, we get a reference to our RecyclerView from xml. This allows us to
@@ -171,9 +169,7 @@ public class MainActivity extends AppCompatActivity implements
          */
         getSupportLoaderManager().initLoader(ID_FORECAST_LOADER, null, this);
 
-
-
-//      COMPLETED (19) Remove the statement that registers Mainactivity as a preference change listener
+        SunshineSyncUtils.initialize(this);
     }
 
     /**
